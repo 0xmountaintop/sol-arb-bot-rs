@@ -3,6 +3,7 @@ use bot::ArbitrageBot;
 use std::time::Duration;
 
 mod bot;
+mod consts;
 mod types;
 
 #[tokio::main]
