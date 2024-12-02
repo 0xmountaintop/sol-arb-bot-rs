@@ -2,7 +2,7 @@ use anyhow::Result;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     commitment_config::CommitmentConfig,
-    signature::{Keypair, read_keypair_file},
+    signature::{read_keypair_file, Keypair}, signer::Signer,
 };
 use std::{env, time::Instant};
 use crate::types::*;
@@ -19,7 +19,8 @@ impl ArbitrageBot {
         dotenv::dotenv().ok();
         let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
         let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
-        println!("payer: {:?}", payer);
+        // println!("payer: {:?}", payer.to_base58_string());
+        // println!("payer: {:?}", payer.pubkey().to_string());
         
         Ok(Self {
             client: RpcClient::new_with_commitment(RPC_URL.to_string(), CommitmentConfig::processed()),
