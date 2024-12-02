@@ -24,7 +24,6 @@ pub struct ArbitrageBot {
 
 impl ArbitrageBot {
     pub fn new() -> Result<Self> {
-        dotenv::dotenv().ok();
         let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
         let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
         // println!("payer: {:?}", payer.to_base58_string());

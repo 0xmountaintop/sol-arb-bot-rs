@@ -8,6 +8,8 @@ mod types;
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    dotenv::dotenv().ok();
+
     let bot = ArbitrageBot::new()?;
 
     loop {
