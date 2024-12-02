@@ -241,9 +241,7 @@ impl ArbitrageBot {
         &self,
         addresses: &[String],
     ) -> Result<Vec<solana_sdk::address_lookup_table_account::AddressLookupTableAccount>> {
-        let mut tables = Vec::new();
-
-        for address in addresses {
+        let futures = addresses.iter().map(|address| async {
             let pubkey = Pubkey::from_str(address)?;
             let account = self
                 .client
@@ -251,14 +249,16 @@ impl ArbitrageBot {
                 .value
                 .ok_or_else(|| anyhow::anyhow!("Address lookup table not found"))?;
 
-            let table = solana_sdk::address_lookup_table_account::AddressLookupTableAccount::new(
+            Ok(solana_sdk::address_lookup_table_account::AddressLookupTableAccount::new(
                 pubkey,
                 account.lamports,
                 account.data,
-            );
-            tables.push(table);
-        }
+            ))
+        });
 
-        Ok(tables)
+        futures::future::join_all(futures)
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>>>()
     }
 }
