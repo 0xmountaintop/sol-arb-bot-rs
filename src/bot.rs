@@ -40,7 +40,7 @@ impl ArbitrageBot {
         Ok(response)
     }
 
-    async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapResponse> {
+    async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
         let response = self.http_client
             .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
             .json(&params)
@@ -100,6 +100,145 @@ impl ArbitrageBot {
         quote1: QuoteResponse,
         jito_tip: u64,
     ) -> Result<()> {
-        unimplemented!()
+        // Merge quote responses for Jupiter API
+        let merged_quote = QuoteResponse {
+            out_amount: quote0.out_amount,
+            route_plan: [quote0.route_plan, quote1.route_plan].concat(),
+            context_slot: quote0.context_slot,
+        };
+
+        // Prepare swap data for Jupiter API
+        let swap_data = SwapData {
+            user_public_key: self.payer.pubkey().to_string(),
+            wrap_and_unwrap_sol: false,
+            use_shared_accounts: false,
+            compute_unit_price_micro_lamports: 1,
+            dynamic_compute_unit_limit: true,
+            skip_user_accounts_rpc_calls: true,
+            quote_response: merged_quote,
+        };
+
+        // Get swap instructions from Jupiter
+        let instructions_resp: SwapInstructionResponse = self.get_swap_instructions(&swap_data).await?;
+
+        // Build transaction instructions
+        let mut instructions = Vec::new();
+
+        // 1. Add compute budget instruction
+        let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(
+            instructions_resp.compute_unit_limit,
+        );
+        instructions.push(compute_budget_ix);
+
+        // 2. Add setup instructions
+        for setup_ix in instructions_resp.setup_instructions {
+            instructions.push(self.convert_instruction_data(setup_ix)?);
+        }
+
+        // 3. Add swap instruction
+        instructions.push(self.convert_instruction_data(instructions_resp.swap_instruction)?);
+
+        // 4. Add tip instruction
+        let tip_ix = system_instruction::transfer(
+            &self.payer.pubkey(),
+            &Pubkey::from_str(JITO_TIP_ACCOUNT)?,
+            jito_tip,
+        );
+        instructions.push(tip_ix);
+
+        // Get latest blockhash
+        let blockhash = self.client.get_latest_blockhash()?;
+
+        // Convert address lookup tables
+        let address_lookup_tables = self.get_address_lookup_tables(
+            &instructions_resp.address_lookup_table_addresses
+        ).await?;
+
+        // Create versioned transaction
+        let message = solana_sdk::message::v0::Message::try_compile(
+            &self.payer.pubkey(),
+            &instructions,
+            &address_lookup_tables,
+            blockhash,
+        )?;
+
+        let transaction = VersionedTransaction::try_new(
+            solana_sdk::message::VersionedMessage::V0(message),
+            &[&self.payer],
+        )?;
+
+        // Serialize transaction for Jito bundle
+        let serialized_tx = transaction.serialize();
+        let base58_tx = base58::encode(&serialized_tx);
+
+        // Send bundle to Jito
+        let bundle_request = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "sendBundle",
+            "params": [[base58_tx]]
+        });
+
+        let bundle_resp = self.http_client
+            .post("https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles")
+            .json(&bundle_request)
+            .send()
+            .await?;
+
+        let bundle_result: serde_json::Value = bundle_resp.json().await?;
+        println!("Sent to frankfurt, bundle id: {}", 
+            bundle_result["result"].as_str().unwrap_or("unknown"));
+
+        Ok(())
+    }
+
+
+    fn convert_instruction_data(&self, ix_data: InstructionData) -> Result<Instruction> {
+        let program_id = Pubkey::from_str(&ix_data.program_id)?;
+        
+        let accounts: Vec<AccountMeta> = ix_data.accounts
+            .into_iter()
+            .map(|acc| {
+                let pubkey = Pubkey::from_str(&acc.pubkey)
+                    .expect("Failed to parse pubkey");
+                if acc.is_writable {
+                    AccountMeta::new(pubkey, acc.is_signer)
+                } else {
+                    AccountMeta::new_readonly(pubkey, acc.is_signer)
+                }
+            })
+            .collect();
+
+        let data = base58::decode(&ix_data.data)?;
+
+        Ok(Instruction {
+            program_id,
+            accounts,
+            data,
+        })
+    }
+
+    async fn get_address_lookup_tables(
+        &self,
+        addresses: &[String]
+    ) -> Result<Vec<solana_sdk::address_lookup_table_account::AddressLookupTableAccount>> {
+        let mut tables = Vec::new();
+        
+        for address in addresses {
+            let pubkey = Pubkey::from_str(address)?;
+            let account = self.client
+                .get_account_with_commitment(&pubkey, CommitmentConfig::processed)?
+                .value
+                .ok_or_else(|| anyhow::anyhow!("Address lookup table not found"))?;
+
+            let table = solana_sdk::address_lookup_table_account::AddressLookupTableAccount::new(
+                pubkey,
+                account.lamports,
+                account.data,
+            );
+            tables.push(table);
+        }
+
+        Ok(tables)
     }
 }

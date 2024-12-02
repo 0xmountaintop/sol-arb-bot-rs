@@ -28,7 +28,24 @@ pub struct SwapData {
     pub quote_response: QuoteResponse,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct SwapResponse {
-    pub swap_instructions: serde_json::Value, // TODO: FIXME
+#[derive(Debug, Deserialize)]
+pub struct SwapInstructionResponse {
+    pub compute_unit_limit: u32,
+    pub setup_instructions: Vec<InstructionData>,
+    pub swap_instruction: InstructionData,
+    pub address_lookup_table_addresses: Vec<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InstructionData {
+    pub program_id: String,
+    pub accounts: Vec<AccountData>,
+    pub data: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct AccountData {
+    pub pubkey: String,
+    pub is_signer: bool,
+    pub is_writable: bool,
 }
