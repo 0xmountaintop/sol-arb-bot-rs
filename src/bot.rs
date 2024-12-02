@@ -2,8 +2,10 @@ use crate::consts::*;
 use crate::types::*;
 use anyhow::Result;
 use base58::{FromBase58, ToBase58};
+use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
+    compute_budget::ComputeBudgetInstruction,
     commitment_config::CommitmentConfig,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
