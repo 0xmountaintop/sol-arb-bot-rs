@@ -9,7 +9,7 @@ mod types;
 #[tokio::main]
 async fn main() -> Result<()> {
     let bot = ArbitrageBot::new()?;
-    
+
     loop {
         if let Err(e) = bot.run().await {
             eprintln!("Error running bot: {}", e);

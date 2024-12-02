@@ -1,12 +1,12 @@
 use anyhow::Result;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
-    commitment_config::CommitmentConfig,
-    signature::{read_keypair_file, Keypair}, signer::Signer,
+    commitment_config::CommitmentConfig, instruction::{AccountMeta, Instruction}, pubkey::Pubkey, signature::{read_keypair_file, Keypair}, signer::Signer, system_instruction, transaction::VersionedTransaction
 };
-use std::{env, time::Instant};
+use std::{env, time::Instant, str::FromStr};
 use crate::types::*;
 use crate::consts::*;
+use base58::{FromBase58, ToBase58};
 
 pub struct ArbitrageBot {
     client: RpcClient,
@@ -169,7 +169,7 @@ impl ArbitrageBot {
 
         // Serialize transaction for Jito bundle
         let serialized_tx = transaction.serialize();
-        let base58_tx = base58::encode(&serialized_tx);
+        let base58_tx = serialized_tx.to_base58();
 
         // Send bundle to Jito
         let bundle_request = serde_json::json!({
@@ -209,7 +209,7 @@ impl ArbitrageBot {
             })
             .collect();
 
-        let data = base58::decode(&ix_data.data)?;
+        let data = ix_data.data.from_base58().map_err(|_| anyhow::anyhow!("Failed to decode data"))?;
 
         Ok(Instruction {
             program_id,
@@ -227,7 +227,7 @@ impl ArbitrageBot {
         for address in addresses {
             let pubkey = Pubkey::from_str(address)?;
             let account = self.client
-                .get_account_with_commitment(&pubkey, CommitmentConfig::processed)?
+                .get_account_with_commitment(&pubkey, CommitmentConfig::processed())?
                 .value
                 .ok_or_else(|| anyhow::anyhow!("Address lookup table not found"))?;
 
