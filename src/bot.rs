@@ -1,7 +1,10 @@
 use anyhow::Result;
 use solana_client::rpc_client::RpcClient;
-use solana_sdk::signature::Keypair;
-use std::time::Instant;
+use solana_sdk::{
+    commitment_config::CommitmentConfig,
+    signature::{Keypair, read_keypair_file},
+};
+use std::{env, time::Instant};
 use crate::types::*;
 use crate::consts::*;
 
@@ -13,7 +16,16 @@ pub struct ArbitrageBot {
 
 impl ArbitrageBot {
     pub fn new() -> Result<Self> {
-        unimplemented!()
+        dotenv::dotenv().ok();
+        let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
+        let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
+        println!("payer: {:?}", payer);
+        
+        Ok(Self {
+            client: RpcClient::new_with_commitment(RPC_URL.to_string(), CommitmentConfig::processed()),
+            http_client: reqwest::Client::new(),
+            payer,
+        })
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
