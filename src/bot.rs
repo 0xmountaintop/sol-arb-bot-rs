@@ -5,8 +5,8 @@ use base58::{FromBase58, ToBase58};
 use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
-    compute_budget::ComputeBudgetInstruction,
     commitment_config::CommitmentConfig,
+    compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     signature::{read_keypair_file, Keypair},
@@ -249,11 +249,13 @@ impl ArbitrageBot {
                 .value
                 .ok_or_else(|| anyhow::anyhow!("Address lookup table not found"))?;
 
-            Ok(solana_sdk::address_lookup_table_account::AddressLookupTableAccount::new(
-                pubkey,
-                account.lamports,
-                account.data,
-            ))
+            Ok(
+                solana_sdk::address_lookup_table_account::AddressLookupTableAccount::new(
+                    pubkey,
+                    account.lamports,
+                    account.data,
+                ),
+            )
         });
 
         futures::future::join_all(futures)
