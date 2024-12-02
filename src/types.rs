@@ -13,7 +13,7 @@ pub struct QuoteParams {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct QuoteResponse {
     pub out_amount: u64,
-    pub route_plan: serde_json::Value,
+    pub route_plan: Vec<serde_json::Value>,
     pub context_slot: u64,
 }
 
