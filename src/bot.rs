@@ -1,12 +1,18 @@
+use crate::consts::*;
+use crate::types::*;
 use anyhow::Result;
+use base58::{FromBase58, ToBase58};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
-    commitment_config::CommitmentConfig, instruction::{AccountMeta, Instruction}, pubkey::Pubkey, signature::{read_keypair_file, Keypair}, signer::Signer, system_instruction, transaction::VersionedTransaction
+    commitment_config::CommitmentConfig,
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    signature::{read_keypair_file, Keypair},
+    signer::Signer,
+    system_instruction,
+    transaction::VersionedTransaction,
 };
-use std::{env, time::Instant, str::FromStr};
-use crate::types::*;
-use crate::consts::*;
-use base58::{FromBase58, ToBase58};
+use std::{env, str::FromStr, time::Instant};
 
 pub struct ArbitrageBot {
     client: RpcClient,
@@ -21,16 +27,20 @@ impl ArbitrageBot {
         let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
         // println!("payer: {:?}", payer.to_base58_string());
         // println!("payer: {:?}", payer.pubkey().to_string());
-        
+
         Ok(Self {
-            client: RpcClient::new_with_commitment(RPC_URL.to_string(), CommitmentConfig::processed()),
+            client: RpcClient::new_with_commitment(
+                RPC_URL.to_string(),
+                CommitmentConfig::processed(),
+            ),
             http_client: reqwest::Client::new(),
             payer,
         })
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
             .query(&params)
             .send()
@@ -41,7 +51,8 @@ impl ArbitrageBot {
     }
 
     async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
-        let response = self.http_client
+        let response = self
+            .http_client
             .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
             .json(&params)
             .send()
@@ -79,14 +90,15 @@ impl ArbitrageBot {
         // Calculate potential profit
         let diff_lamports = quote1_resp.out_amount.saturating_sub(quote0_params.amount);
         println!("diffLamports: {}", diff_lamports);
-        
+
         let jito_tip = diff_lamports / 2;
 
         const THRESHOLD: u64 = 3000;
         if diff_lamports > THRESHOLD {
             // Build and send transaction
-            self.execute_arbitrage(quote0_resp, quote1_resp, jito_tip).await?;
-            
+            self.execute_arbitrage(quote0_resp, quote1_resp, jito_tip)
+                .await?;
+
             let duration = start.elapsed();
             println!("Total duration: {}ms", duration.as_millis());
         }
@@ -119,15 +131,15 @@ impl ArbitrageBot {
         };
 
         // Get swap instructions from Jupiter
-        let instructions_resp: SwapInstructionResponse = self.get_swap_instructions(&swap_data).await?;
+        let instructions_resp: SwapInstructionResponse =
+            self.get_swap_instructions(&swap_data).await?;
 
         // Build transaction instructions
         let mut instructions = Vec::new();
 
         // 1. Add compute budget instruction
-        let compute_budget_ix = ComputeBudgetInstruction::set_compute_unit_limit(
-            instructions_resp.compute_unit_limit,
-        );
+        let compute_budget_ix =
+            ComputeBudgetInstruction::set_compute_unit_limit(instructions_resp.compute_unit_limit);
         instructions.push(compute_budget_ix);
 
         // 2. Add setup instructions
@@ -150,9 +162,9 @@ impl ArbitrageBot {
         let blockhash = self.client.get_latest_blockhash()?;
 
         // Convert address lookup tables
-        let address_lookup_tables = self.get_address_lookup_tables(
-            &instructions_resp.address_lookup_table_addresses
-        ).await?;
+        let address_lookup_tables = self
+            .get_address_lookup_tables(&instructions_resp.address_lookup_table_addresses)
+            .await?;
 
         // Create versioned transaction
         let message = solana_sdk::message::v0::Message::try_compile(
@@ -179,28 +191,30 @@ impl ArbitrageBot {
             "params": [[base58_tx]]
         });
 
-        let bundle_resp = self.http_client
+        let bundle_resp = self
+            .http_client
             .post("https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles")
             .json(&bundle_request)
             .send()
             .await?;
 
         let bundle_result: serde_json::Value = bundle_resp.json().await?;
-        println!("Sent to frankfurt, bundle id: {}", 
-            bundle_result["result"].as_str().unwrap_or("unknown"));
+        println!(
+            "Sent to frankfurt, bundle id: {}",
+            bundle_result["result"].as_str().unwrap_or("unknown")
+        );
 
         Ok(())
     }
 
-
     fn convert_instruction_data(&self, ix_data: InstructionData) -> Result<Instruction> {
         let program_id = Pubkey::from_str(&ix_data.program_id)?;
-        
-        let accounts: Vec<AccountMeta> = ix_data.accounts
+
+        let accounts: Vec<AccountMeta> = ix_data
+            .accounts
             .into_iter()
             .map(|acc| {
-                let pubkey = Pubkey::from_str(&acc.pubkey)
-                    .expect("Failed to parse pubkey");
+                let pubkey = Pubkey::from_str(&acc.pubkey).expect("Failed to parse pubkey");
                 if acc.is_writable {
                     AccountMeta::new(pubkey, acc.is_signer)
                 } else {
@@ -209,7 +223,10 @@ impl ArbitrageBot {
             })
             .collect();
 
-        let data = ix_data.data.from_base58().map_err(|_| anyhow::anyhow!("Failed to decode data"))?;
+        let data = ix_data
+            .data
+            .from_base58()
+            .map_err(|_| anyhow::anyhow!("Failed to decode data"))?;
 
         Ok(Instruction {
             program_id,
@@ -220,13 +237,14 @@ impl ArbitrageBot {
 
     async fn get_address_lookup_tables(
         &self,
-        addresses: &[String]
+        addresses: &[String],
     ) -> Result<Vec<solana_sdk::address_lookup_table_account::AddressLookupTableAccount>> {
         let mut tables = Vec::new();
-        
+
         for address in addresses {
             let pubkey = Pubkey::from_str(address)?;
-            let account = self.client
+            let account = self
+                .client
                 .get_account_with_commitment(&pubkey, CommitmentConfig::processed())?
                 .value
                 .ok_or_else(|| anyhow::anyhow!("Address lookup table not found"))?;
