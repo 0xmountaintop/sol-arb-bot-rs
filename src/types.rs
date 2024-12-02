@@ -27,3 +27,8 @@ pub struct SwapData {
     pub skip_user_accounts_rpc_calls: bool,
     pub quote_response: QuoteResponse,
 }
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct SwapResponse {
+    pub swap_instructions: serde_json::Value, // TODO: FIXME
+}

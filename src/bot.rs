@@ -29,7 +29,25 @@ impl ArbitrageBot {
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
-        unimplemented!()
+        let response = self.http_client
+            .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
+            .query(&params)
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(response)
+    }
+
+    async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapResponse> {
+        let response = self.http_client
+            .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
+            .json(&params)
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(response)
     }
 
     pub async fn run(&self) -> Result<()> {
