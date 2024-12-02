@@ -1,10 +1,10 @@
 use crate::consts::*;
 use crate::types::*;
 use anyhow::Result;
-use base58::{FromBase58, ToBase58};
 use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
+    bs58,
     commitment_config::CommitmentConfig,
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
@@ -26,8 +26,7 @@ impl ArbitrageBot {
     pub fn new() -> Result<Self> {
         let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
         let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
-        // println!("payer: {:?}", payer.to_base58_string());
-        // println!("payer: {:?}", payer.pubkey().to_string());
+        println!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
 
         Ok(Self {
             client: RpcClient::new_with_commitment(
@@ -181,8 +180,8 @@ impl ArbitrageBot {
         )?;
 
         // Serialize transaction for Jito bundle
-        let serialized_tx = transaction.serialize();
-        let base58_tx = serialized_tx.to_base58();
+        let serialized_tx = transaction.serialize()?;
+        let base58_tx = bs58::encode(&serialized_tx).into_string();
 
         // Send bundle to Jito
         let bundle_request = serde_json::json!({
@@ -224,10 +223,7 @@ impl ArbitrageBot {
             })
             .collect();
 
-        let data = ix_data
-            .data
-            .from_base58()
-            .map_err(|_| anyhow::anyhow!("Failed to decode data"))?;
+        let data = bs58::decode(&ix_data.data).into_vec()?;
 
         Ok(Instruction {
             program_id,
