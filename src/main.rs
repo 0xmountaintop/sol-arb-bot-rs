@@ -1,9 +1,9 @@
 use anyhow::Result;
 use bot::ArbitrageBot;
-use std::time::Duration;
 use env_logger::Builder;
 use log::LevelFilter;
 use std::io::Write;
+use std::time::Duration;
 
 mod bot;
 mod consts;

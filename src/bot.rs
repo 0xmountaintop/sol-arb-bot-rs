@@ -1,6 +1,7 @@
 use crate::consts::*;
 use crate::types::*;
 use anyhow::Result;
+use log;
 use solana_client::rpc_client::RpcClient;
 use solana_program::address_lookup_table::{
     self,
@@ -17,7 +18,6 @@ use solana_sdk::{
     transaction::VersionedTransaction,
 };
 use std::{env, str::FromStr, time::Instant};
-use log;
 
 pub struct ArbitrageBot {
     client: RpcClient,
@@ -30,7 +30,8 @@ impl ArbitrageBot {
         // TODO: revert back
         // let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
         // let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
-        let wallet_secret_key = env::var("WALLET_SECRET_KEY").expect("WALLET_SECRET_KEY must be set");
+        let wallet_secret_key =
+            env::var("WALLET_SECRET_KEY").expect("WALLET_SECRET_KEY must be set");
         let payer = Keypair::from_base58_string(&wallet_secret_key);
 
         log::info!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
@@ -71,7 +72,8 @@ impl ArbitrageBot {
         let quote1_resp = self.get_quote(&quote1_params).await?;
 
         // Calculate potential profit
-        let diff_lamports = quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
+        let diff_lamports =
+            quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
         log::info!("diffLamports: {}", diff_lamports);
 
         let jito_tip = diff_lamports / 2;
@@ -98,7 +100,8 @@ impl ArbitrageBot {
         let mut merged_quote = quote0.clone();
         merged_quote.output_mint = quote1.output_mint;
         merged_quote.out_amount = quote1.out_amount;
-        merged_quote.other_amount_threshold = (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
+        merged_quote.other_amount_threshold =
+            (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
         merged_quote.price_impact_pct = 0.0.to_string();
         merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
 
@@ -200,7 +203,10 @@ impl ArbitrageBot {
             .iter()
             .map(|tx| bincode::serialize(tx).map_err(anyhow::Error::from))
             .collect::<Result<_>>()?;
-        let base58_txs = serialized_txs.iter().map(|tx| bs58::encode(tx).into_string()).collect::<Vec<_>>();
+        let base58_txs = serialized_txs
+            .iter()
+            .map(|tx| bs58::encode(tx).into_string())
+            .collect::<Vec<_>>();
 
         // Prepare bundle request
         let bundle_request = serde_json::json!({
@@ -221,10 +227,7 @@ impl ArbitrageBot {
         let bundle_result: serde_json::Value = bundle_resp.json().await?;
         let bundle_id = bundle_result["result"].as_str().unwrap_or("unknown");
 
-        log::info!(
-            "Sent to jito, bundle id: {}",
-            bundle_id
-        );
+        log::info!("Sent to jito, bundle id: {}", bundle_id);
 
         Ok(())
     }
