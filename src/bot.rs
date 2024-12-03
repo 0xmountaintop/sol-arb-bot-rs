@@ -17,6 +17,7 @@ use solana_sdk::{
     transaction::VersionedTransaction,
 };
 use std::{env, str::FromStr, time::Instant};
+use log;
 
 pub struct ArbitrageBot {
     client: RpcClient,
@@ -28,7 +29,7 @@ impl ArbitrageBot {
     pub fn new() -> Result<Self> {
         let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
         let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
-        println!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
+        log::info!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
 
         Ok(Self {
             client: RpcClient::new_with_commitment(
@@ -91,7 +92,7 @@ impl ArbitrageBot {
 
         // Calculate potential profit
         let diff_lamports = quote1_resp.out_amount.saturating_sub(quote0_params.amount);
-        println!("diffLamports: {}", diff_lamports);
+        log::info!("diffLamports: {}", diff_lamports);
 
         let jito_tip = diff_lamports / 2;
 
@@ -102,7 +103,7 @@ impl ArbitrageBot {
                 .await?;
 
             let duration = start.elapsed();
-            println!("Total duration: {}ms", duration.as_millis());
+            log::info!("Total duration: {}ms", duration.as_millis());
         }
 
         Ok(())
@@ -201,7 +202,7 @@ impl ArbitrageBot {
             .await?;
 
         let bundle_result: serde_json::Value = bundle_resp.json().await?;
-        println!(
+        log::info!(
             "Sent to frankfurt, bundle id: {}",
             bundle_result["result"].as_str().unwrap_or("unknown")
         );
