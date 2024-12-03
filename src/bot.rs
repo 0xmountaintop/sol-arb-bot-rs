@@ -183,22 +183,25 @@ impl ArbitrageBot {
         )?;
 
         // Send the transaction as a bundle
-        self.send_bundle_to_jito(&transaction).await?;
+        self.send_bundle_to_jito(vec![transaction]).await?;
 
         Ok(())
     }
 
-    async fn send_bundle_to_jito(&self, transaction: &VersionedTransaction) -> Result<()> {
-        // Serialize transaction for Jito bundle
-        let serialized_tx = bincode::serialize(transaction)?;
-        let base58_tx = bs58::encode(&serialized_tx).into_string();
+    async fn send_bundle_to_jito(&self, transactions: Vec<VersionedTransaction>) -> Result<()> {
+        // Serialize transactions for Jito bundle
+        let serialized_txs: Vec<Vec<u8>> = transactions
+            .iter()
+            .map(|tx| bincode::serialize(tx).map_err(anyhow::Error::from))
+            .collect::<Result<_>>()?;
+        let base58_txs = serialized_txs.iter().map(|tx| bs58::encode(tx).into_string()).collect::<Vec<_>>();
 
         // Prepare bundle request
         let bundle_request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
             "method": "sendBundle",
-            "params": [[base58_tx]]
+            "params": [base58_txs]
         });
 
         // Send bundle to Jito
