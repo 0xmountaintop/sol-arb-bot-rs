@@ -182,11 +182,18 @@ impl ArbitrageBot {
             &[&self.payer],
         )?;
 
+        // Send the transaction as a bundle
+        self.send_bundle_to_jito(&transaction).await?;
+
+        Ok(())
+    }
+
+    async fn send_bundle_to_jito(&self, transaction: &VersionedTransaction) -> Result<()> {
         // Serialize transaction for Jito bundle
-        let serialized_tx = bincode::serialize(&transaction)?;
+        let serialized_tx = bincode::serialize(transaction)?;
         let base58_tx = bs58::encode(&serialized_tx).into_string();
 
-        // Send bundle to Jito
+        // Prepare bundle request
         let bundle_request = serde_json::json!({
             "jsonrpc": "2.0",
             "id": 1,
@@ -194,6 +201,7 @@ impl ArbitrageBot {
             "params": [[base58_tx]]
         });
 
+        // Send bundle to Jito
         let bundle_resp = self
             .http_client
             .post(JITO_RPC_URL.to_string())
@@ -202,14 +210,18 @@ impl ArbitrageBot {
             .await?;
 
         let bundle_result: serde_json::Value = bundle_resp.json().await?;
+        let bundle_id = bundle_result.get("data")
+            .and_then(|data| data.get("result"))
+            .and_then(|result| result.as_str())
+            .unwrap_or("unknown");
+
         log::info!(
             "Sent to frankfurt, bundle id: {}",
-            bundle_result["result"].as_str().unwrap_or("unknown")
+            bundle_id
         );
 
         Ok(())
     }
-
 
     // TODO: fix me
     fn convert_instruction_data(&self, ix_data: InstructionData) -> Result<Instruction> {
