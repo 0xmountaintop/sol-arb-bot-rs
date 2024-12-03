@@ -1,6 +1,7 @@
 use crate::consts::*;
 use crate::types::*;
 use anyhow::Result;
+use log;
 use solana_client::rpc_client::RpcClient;
 use solana_program::address_lookup_table::{
     self,
@@ -10,6 +11,7 @@ use solana_sdk::{
     commitment_config::CommitmentConfig,
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
+    native_token::LAMPORTS_PER_SOL,
     pubkey::Pubkey,
     signature::{read_keypair_file, Keypair},
     signer::Signer,
@@ -17,7 +19,6 @@ use solana_sdk::{
     transaction::VersionedTransaction,
 };
 use std::{env, str::FromStr, time::Instant};
-use log;
 
 pub struct ArbitrageBot {
     client: RpcClient,
@@ -30,7 +31,8 @@ impl ArbitrageBot {
         // TODO: revert back
         // let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
         // let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
-        let wallet_secret_key = env::var("WALLET_SECRET_KEY").expect("WALLET_SECRET_KEY must be set");
+        let wallet_secret_key =
+            env::var("WALLET_SECRET_KEY").expect("WALLET_SECRET_KEY must be set");
         let payer = Keypair::from_base58_string(&wallet_secret_key);
 
         log::info!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
@@ -50,41 +52,41 @@ impl ArbitrageBot {
 
         // Quote 0: WSOL -> USDC
         let quote0_params = QuoteParams {
-            input_mint: WSOL_MINT.to_string(),
-            output_mint: USDC_MINT.to_string(),
-            amount: 10_000_000.to_string(), // 0.01 WSOL
+            input_mint: USDC_MINT.to_string(),
+            output_mint: WSOL_MINT.to_string(),
+            amount: 1_000_000.to_string(), // 1 USDC
             only_direct_routes: false,
-            slippage_bps: 0,
+            slippage_bps: 300,
             max_accounts: 20,
         };
         let quote0_resp = self.get_quote(&quote0_params).await?;
 
-        // Quote 1: USDC -> WSOL
-        let quote1_params = QuoteParams {
-            input_mint: USDC_MINT.to_string(),
-            output_mint: WSOL_MINT.to_string(),
-            amount: quote0_resp.out_amount.clone(),
-            only_direct_routes: false,
-            slippage_bps: 0,
-            max_accounts: 20,
-        };
-        let quote1_resp = self.get_quote(&quote1_params).await?;
+        // // Quote 1: USDC -> WSOL
+        // let quote1_params = QuoteParams {
+        //     input_mint: USDC_MINT.to_string(),
+        //     output_mint: WSOL_MINT.to_string(),
+        //     amount: quote0_resp.out_amount.clone(),
+        //     only_direct_routes: false,
+        //     slippage_bps: 0,
+        //     max_accounts: 20,
+        // };
+        // let quote1_resp = self.get_quote(&quote1_params).await?;
 
-        // Calculate potential profit
-        let diff_lamports = quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
-        log::info!("diffLamports: {}", diff_lamports);
+        // // Calculate potential profit
+        // let diff_lamports = quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
+        // log::info!("diffLamports: {}", diff_lamports);
 
-        let jito_tip = diff_lamports / 2;
+        // let jito_tip = diff_lamports / 2;
 
         const THRESHOLD: u64 = 3000;
-        if diff_lamports > THRESHOLD {
-            // Build and send transaction
-            self.execute_arbitrage(quote0_resp, quote1_resp, jito_tip)
-                .await?;
+        // if diff_lamports > THRESHOLD {
+        // Build and send transaction
+        self.execute_arbitrage(quote0_resp, LAMPORTS_PER_SOL / 10000)
+            .await?;
 
-            let duration = start.elapsed();
-            log::info!("Total duration: {}ms", duration.as_millis());
-        }
+        let duration = start.elapsed();
+        log::info!("Total duration: {}ms", duration.as_millis());
+        // }
 
         Ok(())
     }
@@ -92,15 +94,15 @@ impl ArbitrageBot {
     async fn execute_arbitrage(
         &self,
         quote0: QuoteResponse,
-        quote1: QuoteResponse,
+        // quote1: QuoteResponse,
         jito_tip: u64,
     ) -> Result<()> {
         let mut merged_quote = quote0.clone();
-        merged_quote.output_mint = quote1.output_mint;
-        merged_quote.out_amount = quote1.out_amount;
-        merged_quote.other_amount_threshold = (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
+        // merged_quote.output_mint = quote1.output_mint;
+        // merged_quote.out_amount = quote1.out_amount;
+        // merged_quote.other_amount_threshold = (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
         merged_quote.price_impact_pct = 0.0.to_string();
-        merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
+        // merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
 
         // Prepare swap data for Jupiter API
         let swap_data = SwapData {
@@ -162,6 +164,8 @@ impl ArbitrageBot {
             &[&self.payer],
         )?;
 
+        log::info!("transaction: {:?}", transaction.signatures[0]);
+
         // Send the transaction as a bundle
         self.send_bundle_to_jito(vec![transaction]).await?;
 
@@ -169,6 +173,19 @@ impl ArbitrageBot {
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
+        // let response = self
+        //     .http_client
+        //     .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
+        //     .query(&params)
+        //     .send()
+        //     .await?;
+
+        // let response_body = response.text().await?;
+        // log::debug!("quote response body: {}", response_body);
+        // let quote_response: QuoteResponse = serde_json::from_str(&response_body)?;
+        // log::debug!("quote: {:?}", quote_response);
+        // Ok(quote_response)
+
         let response: QuoteResponse = self
             .http_client
             .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
@@ -181,6 +198,19 @@ impl ArbitrageBot {
     }
 
     async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
+        // let response = self
+        //     .http_client
+        //     .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
+        //     .json(&params)
+        //     .send()
+        //     .await?;
+
+        // let response_body = response.text().await?;
+        // log::debug!("swap-instructions response body: {}", response_body);
+        // let inst_response: SwapInstructionResponse = serde_json::from_str(&response_body)?;
+        // log::debug!("inst_response: {:?}", inst_response);
+        // Ok(inst_response)
+
         let response: SwapInstructionResponse = self
             .http_client
             .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
@@ -198,7 +228,10 @@ impl ArbitrageBot {
             .iter()
             .map(|tx| bincode::serialize(tx).map_err(anyhow::Error::from))
             .collect::<Result<_>>()?;
-        let base58_txs = serialized_txs.iter().map(|tx| bs58::encode(tx).into_string()).collect::<Vec<_>>();
+        let base58_txs = serialized_txs
+            .iter()
+            .map(|tx| bs58::encode(tx).into_string())
+            .collect::<Vec<_>>();
 
         // Prepare bundle request
         let bundle_request = serde_json::json!({
@@ -217,20 +250,13 @@ impl ArbitrageBot {
             .await?;
 
         let bundle_result: serde_json::Value = bundle_resp.json().await?;
-        let bundle_id = bundle_result.get("data")
-            .and_then(|data| data.get("result"))
-            .and_then(|result| result.as_str())
-            .unwrap_or("unknown");
+        let bundle_id = bundle_result["result"].as_str().unwrap_or("unknown");
 
-        log::info!(
-            "Sent to jito, bundle id: {}",
-            bundle_id
-        );
+        log::info!("Sent to jito, bundle id: {}", bundle_id);
 
         Ok(())
     }
 
-    // TODO: fix me
     fn convert_instruction_data(&self, ix_data: InstructionData) -> Result<Instruction> {
         let program_id = Pubkey::from_str(&ix_data.program_id)?;
 
@@ -239,10 +265,10 @@ impl ArbitrageBot {
             .into_iter()
             .map(|acc| {
                 let pubkey = Pubkey::from_str(&acc.pubkey).expect("Failed to parse pubkey");
-                if acc.is_writable {
-                    AccountMeta::new(pubkey, acc.is_signer)
-                } else {
-                    AccountMeta::new_readonly(pubkey, acc.is_signer)
+                AccountMeta {
+                    pubkey,
+                    is_signer: acc.is_signer,
+                    is_writable: acc.is_writable,
                 }
             })
             .collect();
