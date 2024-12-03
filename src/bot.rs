@@ -219,7 +219,7 @@ impl ArbitrageBot {
             .unwrap_or("unknown");
 
         log::info!(
-            "Sent to frankfurt, bundle id: {}",
+            "Sent to jito, bundle id: {}",
             bundle_id
         );
 
