@@ -41,30 +41,6 @@ impl ArbitrageBot {
         })
     }
 
-    async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
-        let response: QuoteResponseWrapper = self
-            .http_client
-            .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
-            .query(&params)
-            .send()
-            .await?
-            .json()
-            .await?;
-        Ok(response.data)
-    }
-
-    async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
-        let response: SwapInstructionResponseWrapper = self
-            .http_client
-            .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
-            .json(&params)
-            .send()
-            .await?
-            .json()
-            .await?;
-        Ok(response.data)
-    }
-
     pub async fn run(&self) -> Result<()> {
         let start = Instant::now();
 
@@ -186,6 +162,30 @@ impl ArbitrageBot {
         self.send_bundle_to_jito(vec![transaction]).await?;
 
         Ok(())
+    }
+
+    async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
+        let response: QuoteResponseWrapper = self
+            .http_client
+            .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
+            .query(&params)
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(response.data)
+    }
+
+    async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
+        let response: SwapInstructionResponseWrapper = self
+            .http_client
+            .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
+            .json(&params)
+            .send()
+            .await?
+            .json()
+            .await?;
+        Ok(response.data)
     }
 
     async fn send_bundle_to_jito(&self, transactions: Vec<VersionedTransaction>) -> Result<()> {
