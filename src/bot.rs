@@ -227,7 +227,7 @@ impl ArbitrageBot {
             })
             .collect();
 
-        let data = bs58::decode(&ix_data.data).into_vec()?;
+        let data = base64::decode(&ix_data.data)?;
 
         Ok(Instruction {
             program_id,
