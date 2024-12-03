@@ -52,7 +52,7 @@ impl ArbitrageBot {
         let quote0_params = QuoteParams {
             input_mint: WSOL_MINT.to_string(),
             output_mint: USDC_MINT.to_string(),
-            amount: 10_000_000, // 0.01 WSOL
+            amount: 10_000_000.to_string(), // 0.01 WSOL
             only_direct_routes: false,
             slippage_bps: 0,
             max_accounts: 20,
@@ -63,7 +63,7 @@ impl ArbitrageBot {
         let quote1_params = QuoteParams {
             input_mint: USDC_MINT.to_string(),
             output_mint: WSOL_MINT.to_string(),
-            amount: quote0_resp.out_amount.parse::<u64>()?,
+            amount: quote0_resp.out_amount.clone(),
             only_direct_routes: false,
             slippage_bps: 0,
             max_accounts: 20,
@@ -71,7 +71,7 @@ impl ArbitrageBot {
         let quote1_resp = self.get_quote(&quote1_params).await?;
 
         // Calculate potential profit
-        let diff_lamports = quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount;
+        let diff_lamports = quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
         log::info!("diffLamports: {}", diff_lamports);
 
         let jito_tip = diff_lamports / 2;

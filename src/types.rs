@@ -6,7 +6,7 @@ pub struct QuoteParams {
     pub input_mint: String,
     #[serde(rename = "outputMint")]
     pub output_mint: String,
-    pub amount: u64,
+    pub amount: String,
     #[serde(rename = "onlyDirectRoutes")]
     pub only_direct_routes: bool,
     #[serde(rename = "slippageBps")]
