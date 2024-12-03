@@ -197,7 +197,7 @@ impl ArbitrageBot {
 
         let bundle_resp = self
             .http_client
-            .post("https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles")
+            .post(JITO_RPC_URL.to_string())
             .json(&bundle_request)
             .send()
             .await?;

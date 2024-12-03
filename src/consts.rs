@@ -13,4 +13,8 @@ lazy_static! {
         env::var("JUP_V6_API_BASE_URL")
             .unwrap_or_else(|_| "http://127.0.0.1:8080".to_string())
     };
+    pub static ref JITO_RPC_URL: String = {
+        env::var("JITO_RPC_URL")
+            .unwrap_or_else(|_| "https://frankfurt.mainnet.block-engine.jito.wtf/api/v1/bundles".to_string())
+    };
 }
