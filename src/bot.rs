@@ -73,7 +73,8 @@ impl ArbitrageBot {
         // let quote1_resp = self.get_quote(&quote1_params).await?;
 
         // // Calculate potential profit
-        // let diff_lamports = quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
+        // let diff_lamports =
+        //     quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
         // log::info!("diffLamports: {}", diff_lamports);
 
         // let jito_tip = diff_lamports / 2;
@@ -100,7 +101,8 @@ impl ArbitrageBot {
         let mut merged_quote = quote0.clone();
         // merged_quote.output_mint = quote1.output_mint;
         // merged_quote.out_amount = quote1.out_amount;
-        // merged_quote.other_amount_threshold = (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
+        // merged_quote.other_amount_threshold =
+        //     (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
         merged_quote.price_impact_pct = 0.0.to_string();
         // merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
 
