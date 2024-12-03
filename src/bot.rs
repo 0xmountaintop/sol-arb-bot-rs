@@ -2,6 +2,10 @@ use crate::consts::*;
 use crate::types::*;
 use anyhow::Result;
 use solana_client::rpc_client::RpcClient;
+use solana_program::address_lookup_table::{
+    self,
+    state::{AddressLookupTable, LookupTableMeta},
+};
 use solana_sdk::{
     commitment_config::CommitmentConfig,
     compute_budget::ComputeBudgetInstruction,
@@ -236,18 +240,14 @@ impl ArbitrageBot {
     ) -> Result<Vec<solana_sdk::address_lookup_table_account::AddressLookupTableAccount>> {
         let futures = addresses.iter().map(|address| async {
             let pubkey = Pubkey::from_str(address)?;
-            let account = self
-                .client
-                .get_account_with_commitment(&pubkey, CommitmentConfig::processed())?
-                .value
-                .ok_or_else(|| anyhow::anyhow!("Address lookup table not found"))?;
+            let raw_account = self.client.get_account(&pubkey)?;
+            let address_lookup_table = AddressLookupTable::deserialize(&raw_account.data)?;
 
             Ok(
-                solana_sdk::address_lookup_table_account::AddressLookupTableAccount::new(
-                    pubkey,
-                    account.lamports,
-                    account.data,
-                ),
+                solana_sdk::address_lookup_table_account::AddressLookupTableAccount {
+                    key: pubkey,
+                    addresses: address_lookup_table.addresses.to_vec(),
+                },
             )
         });
 
