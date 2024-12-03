@@ -170,6 +170,19 @@ impl ArbitrageBot {
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
+        // let response = self
+        //     .http_client
+        //     .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
+        //     .query(&params)
+        //     .send()
+        //     .await?;
+
+        // let response_body = response.text().await?;
+        // log::debug!("quote response body: {}", response_body);
+        // let quote_response: QuoteResponse = serde_json::from_str(&response_body)?;
+        // log::debug!("quote: {:?}", quote_response);
+        // Ok(quote_response)
+
         let response: QuoteResponse = self
             .http_client
             .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
@@ -182,6 +195,19 @@ impl ArbitrageBot {
     }
 
     async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
+        // let response = self
+        //     .http_client
+        //     .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
+        //     .json(&params)
+        //     .send()
+        //     .await?;
+
+        // let response_body = response.text().await?;
+        // log::debug!("swap-instructions response body: {}", response_body);
+        // let inst_response: SwapInstructionResponse = serde_json::from_str(&response_body)?;
+        // log::debug!("inst_response: {:?}", inst_response);
+        // Ok(inst_response)
+
         let response: SwapInstructionResponse = self
             .http_client
             .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
