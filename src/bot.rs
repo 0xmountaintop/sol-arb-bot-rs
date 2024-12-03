@@ -27,8 +27,12 @@ pub struct ArbitrageBot {
 
 impl ArbitrageBot {
     pub fn new() -> Result<Self> {
-        let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
-        let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
+        // TODO: revert back
+        // let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
+        // let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
+        let wallet_secret_key = env::var("WALLET_SECRET_KEY").expect("WALLET_SECRET_KEY must be set");
+        let payer = Keypair::from_base58_string(&wallet_secret_key);
+
         log::info!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
 
         Ok(Self {
@@ -59,7 +63,7 @@ impl ArbitrageBot {
         let quote1_params = QuoteParams {
             input_mint: USDC_MINT.to_string(),
             output_mint: WSOL_MINT.to_string(),
-            amount: quote0_resp.out_amount,
+            amount: quote0_resp.out_amount.parse::<u64>()?,
             only_direct_routes: false,
             slippage_bps: 0,
             max_accounts: 20,
@@ -67,7 +71,7 @@ impl ArbitrageBot {
         let quote1_resp = self.get_quote(&quote1_params).await?;
 
         // Calculate potential profit
-        let diff_lamports = quote1_resp.out_amount.saturating_sub(quote0_params.amount);
+        let diff_lamports = quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount;
         log::info!("diffLamports: {}", diff_lamports);
 
         let jito_tip = diff_lamports / 2;
@@ -94,8 +98,8 @@ impl ArbitrageBot {
         let mut merged_quote = quote0.clone();
         merged_quote.output_mint = quote1.output_mint;
         merged_quote.out_amount = quote1.out_amount;
-        merged_quote.other_amount_threshold = quote0.other_amount_threshold + jito_tip;
-        merged_quote.price_impact_pct = 0.0;
+        merged_quote.other_amount_threshold = (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
+        merged_quote.price_impact_pct = 0.0.to_string();
         merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
 
         // Prepare swap data for Jupiter API
@@ -165,7 +169,7 @@ impl ArbitrageBot {
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
-        let response: JupResponse<QuoteResponse> = self
+        let response: QuoteResponse = self
             .http_client
             .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
             .query(&params)
@@ -173,11 +177,11 @@ impl ArbitrageBot {
             .await?
             .json()
             .await?;
-        Ok(response.data)
+        Ok(response)
     }
 
     async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
-        let response: JupResponse<SwapInstructionResponse> = self
+        let response: SwapInstructionResponse = self
             .http_client
             .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
             .json(&params)
@@ -185,7 +189,7 @@ impl ArbitrageBot {
             .await?
             .json()
             .await?;
-        Ok(response.data)
+        Ok(response)
     }
 
     async fn send_bundle_to_jito(&self, transactions: Vec<VersionedTransaction>) -> Result<()> {
