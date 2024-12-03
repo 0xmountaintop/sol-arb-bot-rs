@@ -1,10 +1,7 @@
 use anyhow::Result;
 use bot::ArbitrageBot;
 use env_logger::Builder;
-use env_logger::Builder;
 use log::LevelFilter;
-use log::LevelFilter;
-use std::io::Write;
 use std::io::Write;
 use std::time::Duration;
 
