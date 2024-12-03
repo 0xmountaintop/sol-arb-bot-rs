@@ -165,7 +165,7 @@ impl ArbitrageBot {
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
-        let response: QuoteResponseWrapper = self
+        let response: JupResponse<QuoteResponse> = self
             .http_client
             .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
             .query(&params)
@@ -177,7 +177,7 @@ impl ArbitrageBot {
     }
 
     async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
-        let response: SwapInstructionResponseWrapper = self
+        let response: JupResponse<SwapInstructionResponse> = self
             .http_client
             .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
             .json(&params)

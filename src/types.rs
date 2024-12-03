@@ -53,11 +53,6 @@ pub struct AccountData {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct QuoteResponseWrapper {
-    pub data: QuoteResponse,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct SwapInstructionResponseWrapper {
-    pub data: SwapInstructionResponse,
+pub struct JupResponse<T> {
+    pub data: T,
 }
