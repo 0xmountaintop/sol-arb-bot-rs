@@ -1,10 +1,8 @@
 use crate::consts::*;
 use crate::types::*;
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
-    bs58,
     commitment_config::CommitmentConfig,
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
@@ -180,7 +178,7 @@ impl ArbitrageBot {
         )?;
 
         // Serialize transaction for Jito bundle
-        let serialized_tx = transaction.serialize()?;
+        let serialized_tx = bincode::serialize(&transaction)?;
         let base58_tx = bs58::encode(&serialized_tx).into_string();
 
         // Send bundle to Jito
