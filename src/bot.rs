@@ -162,6 +162,8 @@ impl ArbitrageBot {
             &[&self.payer],
         )?;
 
+        log::info!("transaction: {:?}", transaction.signatures[0]);
+
         // Send the transaction as a bundle
         self.send_bundle_to_jito(vec![transaction]).await?;
 
@@ -217,10 +219,7 @@ impl ArbitrageBot {
             .await?;
 
         let bundle_result: serde_json::Value = bundle_resp.json().await?;
-        let bundle_id = bundle_result.get("data")
-            .and_then(|data| data.get("result"))
-            .and_then(|result| result.as_str())
-            .unwrap_or("unknown");
+        let bundle_id = bundle_result["result"].as_str().unwrap_or("unknown");
 
         log::info!(
             "Sent to jito, bundle id: {}",

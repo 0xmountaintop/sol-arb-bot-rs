@@ -31,6 +31,10 @@ pub struct QuoteResponse {
     pub price_impact_pct: String,
     #[serde(rename = "routePlan")]
     pub route_plan: Vec<serde_json::Value>,
+    #[serde(rename = "swapMode")]
+    pub swap_mode: String,
+    #[serde(rename = "slippageBps")]
+    pub slippage_bps: u64,
 }
 
 #[derive(Debug, Serialize)]
@@ -53,14 +57,29 @@ pub struct SwapData {
 
 #[derive(Debug, Deserialize)]
 pub struct SwapInstructionResponse {
+    #[serde(rename = "computeUnitLimit")]
     pub compute_unit_limit: u32,
+    #[serde(rename = "setupInstructions")]
     pub setup_instructions: Vec<InstructionData>,
+    #[serde(rename = "swapInstruction")]
     pub swap_instruction: InstructionData,
+    #[serde(rename = "addressLookupTableAddresses")]
     pub address_lookup_table_addresses: Vec<String>,
+    #[serde(rename = "tokenLedgerInstruction")]
+    pub token_ledger_instruction: Option<InstructionData>,
+    #[serde(rename = "computeBudgetInstructions")]
+    pub compute_budget_instructions: Vec<InstructionData>,
+    #[serde(rename = "cleanupInstruction")]
+    pub cleanup_instruction: Option<InstructionData>,
+    #[serde(rename = "otherInstructions")]
+    pub other_instructions: Vec<InstructionData>,
+    #[serde(rename = "prioritizationFeeLamports")]
+    pub prioritization_fee_lamports: u64,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct InstructionData {
+    #[serde(rename = "programId")]
     pub program_id: String,
     pub accounts: Vec<AccountData>,
     pub data: String,
@@ -69,6 +88,8 @@ pub struct InstructionData {
 #[derive(Debug, Deserialize)]
 pub struct AccountData {
     pub pubkey: String,
+    #[serde(rename = "isSigner")]
     pub is_signer: bool,
+    #[serde(rename = "isWritable")]
     pub is_writable: bool,
 }
