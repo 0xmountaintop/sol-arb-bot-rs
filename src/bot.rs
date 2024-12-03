@@ -40,6 +40,7 @@ impl ArbitrageBot {
         })
     }
 
+    // FIXME: QuoteResponse is inside the response data
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
         let response = self
             .http_client
@@ -52,6 +53,7 @@ impl ArbitrageBot {
         Ok(response)
     }
 
+    // FIXME: SwapInstructionResponse is inside the response data
     async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
         let response = self
             .http_client
@@ -114,16 +116,16 @@ impl ArbitrageBot {
         quote1: QuoteResponse,
         jito_tip: u64,
     ) -> Result<()> {
-        // Merge quote responses for Jupiter API
-        let merged_quote = QuoteResponse {
-            out_amount: quote0.out_amount,
-            route_plan: [quote0.route_plan, quote1.route_plan].concat(),
-            context_slot: quote0.context_slot,
-        };
+        let mut merged_quote = quote0.clone();
+        merged_quote.output_mint = quote1.output_mint;
+        merged_quote.out_amount = quote1.out_amount;
+        merged_quote.other_amount_threshold = quote0.other_amount_threshold + jito_tip;
+        merged_quote.price_impact_pct = 0.0;
+        merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
 
         // Prepare swap data for Jupiter API
         let swap_data = SwapData {
-            user_public_key: self.payer.pubkey().to_string(),
+            user_public_key: bs58::encode(self.payer.pubkey()).into_string(),
             wrap_and_unwrap_sol: false,
             use_shared_accounts: false,
             compute_unit_price_micro_lamports: 1,

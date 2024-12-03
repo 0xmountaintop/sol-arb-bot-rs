@@ -10,11 +10,13 @@ pub struct QuoteParams {
     pub max_accounts: u64,
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct QuoteResponse {
+    pub output_mint: String,
     pub out_amount: u64,
+    pub other_amount_threshold: u64,
+    pub price_impact_pct: f64,
     pub route_plan: Vec<serde_json::Value>,
-    pub context_slot: u64,
 }
 
 #[derive(Debug, Serialize)]
