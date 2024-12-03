@@ -51,3 +51,13 @@ pub struct AccountData {
     pub is_signer: bool,
     pub is_writable: bool,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct QuoteResponseWrapper {
+    pub data: QuoteResponse,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SwapInstructionResponseWrapper {
+    pub data: SwapInstructionResponse,
+}

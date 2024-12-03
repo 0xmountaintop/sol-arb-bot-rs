@@ -40,9 +40,8 @@ impl ArbitrageBot {
         })
     }
 
-    // FIXME: QuoteResponse is inside the response data
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
-        let response = self
+        let response: QuoteResponseWrapper = self
             .http_client
             .get(JUP_V6_API_BASE_URL.to_string() + "/quote")
             .query(&params)
@@ -50,12 +49,11 @@ impl ArbitrageBot {
             .await?
             .json()
             .await?;
-        Ok(response)
+        Ok(response.data)
     }
 
-    // FIXME: SwapInstructionResponse is inside the response data
     async fn get_swap_instructions(&self, params: &SwapData) -> Result<SwapInstructionResponse> {
-        let response = self
+        let response: SwapInstructionResponseWrapper = self
             .http_client
             .post(JUP_V6_API_BASE_URL.to_string() + "/swap-instructions")
             .json(&params)
@@ -63,7 +61,7 @@ impl ArbitrageBot {
             .await?
             .json()
             .await?;
-        Ok(response)
+        Ok(response.data)
     }
 
     pub async fn run(&self) -> Result<()> {
