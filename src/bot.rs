@@ -232,7 +232,6 @@ impl ArbitrageBot {
         Ok(())
     }
 
-    // TODO: fix me
     fn convert_instruction_data(&self, ix_data: InstructionData) -> Result<Instruction> {
         let program_id = Pubkey::from_str(&ix_data.program_id)?;
 
@@ -241,10 +240,10 @@ impl ArbitrageBot {
             .into_iter()
             .map(|acc| {
                 let pubkey = Pubkey::from_str(&acc.pubkey).expect("Failed to parse pubkey");
-                if acc.is_writable {
-                    AccountMeta::new(pubkey, acc.is_signer)
-                } else {
-                    AccountMeta::new_readonly(pubkey, acc.is_signer)
+                AccountMeta {
+                    pubkey,
+                    is_signer: acc.is_signer,
+                    is_writable: acc.is_writable,
                 }
             })
             .collect();
