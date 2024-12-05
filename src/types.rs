@@ -77,7 +77,7 @@ pub struct SwapInstructionResponse {
     pub prioritization_fee_lamports: u64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct InstructionData {
     #[serde(rename = "programId")]
     pub program_id: String,
@@ -85,7 +85,7 @@ pub struct InstructionData {
     pub data: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub struct AccountData {
     pub pubkey: String,
     #[serde(rename = "isSigner")]
