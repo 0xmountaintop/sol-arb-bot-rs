@@ -93,6 +93,35 @@ impl ArbitrageBot {
         quote1: QuoteResponse,
         jito_tip: u64,
     ) -> Result<()> {
+        let merged_quote = self.merge_quotes(quote0, quote1, jito_tip)?;
+
+        let swap_data = self.prepare_swap_data(merged_quote)?;
+
+        let instructions_resp = self.get_swap_instructions(&swap_data).await?;
+
+        let instructions = self.build_instructions(&instructions_resp, jito_tip)?;
+
+        let blockhash = self.client.get_latest_blockhash()?;
+
+        let address_lookup_tables = self
+            .get_address_lookup_tables(&instructions_resp.address_lookup_table_addresses)
+            .await?;
+
+        let transaction = self.create_versioned_transaction(instructions, address_lookup_tables, blockhash)?;
+
+        log::info!("transaction: {:?}", transaction.signatures[0]);
+
+        self.send_bundle_to_jito(vec![transaction]).await?;
+
+        Ok(())
+    }
+
+    fn merge_quotes(
+        &self,
+        quote0: QuoteResponse,
+        quote1: QuoteResponse,
+        jito_tip: u64,
+    ) -> Result<QuoteResponse> {
         let mut merged_quote = quote0.clone();
         merged_quote.output_mint = quote1.output_mint;
         merged_quote.out_amount = quote1.out_amount;
@@ -100,9 +129,11 @@ impl ArbitrageBot {
             (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
         merged_quote.price_impact_pct = 0.0.to_string();
         merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
+        Ok(merged_quote)
+    }
 
-        // Prepare swap data for Jupiter API
-        let swap_data = SwapData {
+    fn prepare_swap_data(&self, merged_quote: QuoteResponse) -> Result<SwapData> {
+        Ok(SwapData {
             user_public_key: bs58::encode(self.payer.pubkey()).into_string(),
             wrap_and_unwrap_sol: false,
             use_shared_accounts: false,
@@ -110,29 +141,26 @@ impl ArbitrageBot {
             dynamic_compute_unit_limit: true,
             skip_user_accounts_rpc_calls: true,
             quote_response: merged_quote,
-        };
+        })
+    }
 
-        // Get swap instructions from Jupiter
-        let instructions_resp: SwapInstructionResponse =
-            self.get_swap_instructions(&swap_data).await?;
-
-        // Build transaction instructions
+    fn build_instructions(
+        &self,
+        instructions_resp: &SwapInstructionResponse,
+        jito_tip: u64,
+    ) -> Result<Vec<Instruction>> {
         let mut instructions = Vec::new();
 
-        // 1. Add compute budget instruction
         let compute_budget_ix =
             ComputeBudgetInstruction::set_compute_unit_limit(instructions_resp.compute_unit_limit);
         instructions.push(compute_budget_ix);
 
-        // 2. Add setup instructions
-        for setup_ix in instructions_resp.setup_instructions {
-            instructions.push(self.convert_instruction_data(setup_ix)?);
+        for setup_ix in &instructions_resp.setup_instructions {
+            instructions.push(self.convert_instruction_data(setup_ix.clone())?);
         }
 
-        // 3. Add swap instruction
-        instructions.push(self.convert_instruction_data(instructions_resp.swap_instruction)?);
+        instructions.push(self.convert_instruction_data(instructions_resp.swap_instruction.clone())?);
 
-        // 4. Add tip instruction
         let tip_ix = system_instruction::transfer(
             &self.payer.pubkey(),
             &Pubkey::from_str(JITO_TIP_ACCOUNT)?,
@@ -140,15 +168,15 @@ impl ArbitrageBot {
         );
         instructions.push(tip_ix);
 
-        // Get latest blockhash
-        let blockhash = self.client.get_latest_blockhash()?;
+        Ok(instructions)
+    }
 
-        // Convert address lookup tables
-        let address_lookup_tables = self
-            .get_address_lookup_tables(&instructions_resp.address_lookup_table_addresses)
-            .await?;
-
-        // Create versioned transaction
+    fn create_versioned_transaction(
+        &self,
+        instructions: Vec<Instruction>,
+        address_lookup_tables: Vec<solana_sdk::address_lookup_table_account::AddressLookupTableAccount>,
+        blockhash: solana_sdk::hash::Hash,
+    ) -> Result<VersionedTransaction> {
         let message = solana_sdk::message::v0::Message::try_compile(
             &self.payer.pubkey(),
             &instructions,
@@ -161,12 +189,7 @@ impl ArbitrageBot {
             &[&self.payer],
         )?;
 
-        log::info!("transaction: {:?}", transaction.signatures[0]);
-
-        // Send the transaction as a bundle
-        self.send_bundle_to_jito(vec![transaction]).await?;
-
-        Ok(())
+        Ok(transaction)
     }
 
     async fn get_quote(&self, params: &QuoteParams) -> Result<QuoteResponse> {
