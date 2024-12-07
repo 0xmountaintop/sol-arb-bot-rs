@@ -8,6 +8,7 @@ use solana_program::address_lookup_table::{
     state::{AddressLookupTable, LookupTableMeta},
 };
 use solana_sdk::{
+    address_lookup_table_account::AddressLookupTableAccount,
     commitment_config::CommitmentConfig,
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
@@ -17,12 +18,18 @@ use solana_sdk::{
     system_instruction,
     transaction::VersionedTransaction,
 };
-use std::{env, str::FromStr, time::Instant};
+use std::{
+    env,
+    str::FromStr,
+    time::{Duration, Instant},
+};
 
 pub struct ArbitrageBot {
     client: RpcClient,
     http_client: reqwest::Client,
     payer: Keypair,
+
+    address_lookup_table_accounts: Option<Vec<AddressLookupTableAccount>>,
 }
 
 impl ArbitrageBot {
@@ -42,10 +49,11 @@ impl ArbitrageBot {
             ),
             http_client: reqwest::Client::new(),
             payer,
+            address_lookup_table_accounts: None,
         })
     }
 
-    pub async fn run(&self) -> Result<()> {
+    pub async fn run(&mut self) -> Result<()> {
         let start = Instant::now();
 
         // Quote 0: WSOL -> USDC
@@ -97,7 +105,7 @@ impl ArbitrageBot {
     }
 
     async fn execute_arbitrage(
-        &self,
+        &mut self,
         quote0: QuoteResponse,
         quote1: QuoteResponse,
         jito_tip: u64,
@@ -152,16 +160,20 @@ impl ArbitrageBot {
         // Get latest blockhash
         let blockhash = self.client.get_latest_blockhash()?;
 
-        // Convert address lookup tables
-        let address_lookup_tables = self
-            .get_address_lookup_tables(&instructions_resp.address_lookup_table_addresses)
-            .await?;
+        if self.address_lookup_table_accounts.is_none() {
+            let address_lookup_tables = self
+                .get_address_lookup_tables(&instructions_resp.address_lookup_table_addresses)
+                .await?;
+            self.address_lookup_table_accounts = Some(address_lookup_tables.clone());
+        }
+
+        let address_lookup_tables = self.address_lookup_table_accounts.as_ref().unwrap();
 
         // Create versioned transaction
         let message = solana_sdk::message::v0::Message::try_compile(
             &self.payer.pubkey(),
             &instructions,
-            &address_lookup_tables,
+            address_lookup_tables,
             blockhash,
         )?;
 

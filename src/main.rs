@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
 
     dotenv::dotenv().ok();
 
-    let bot = ArbitrageBot::new()?;
+    let mut bot = ArbitrageBot::new()?;
 
     loop {
         if let Err(e) = bot.run().await {
