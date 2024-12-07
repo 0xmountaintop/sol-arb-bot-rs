@@ -70,17 +70,20 @@ impl ArbitrageBot {
         };
         let quote1_resp = self.get_quote(&quote1_params).await?;
 
+        log::debug!("quote1_resp.out_amount: {:?}", quote1_resp.out_amount);
+        log::debug!("quote0_params.amount: {:?}", quote0_params.amount);
+
         // Calculate potential profit
-        let diff_lamports =
-            quote1_resp.out_amount.parse::<u64>()? - quote0_params.amount.parse::<u64>()?;
+        let diff_lamports: i64 =
+            quote1_resp.out_amount.parse::<i64>()? - quote0_params.amount.parse::<i64>()?;
         log::info!("diffLamports: {}", diff_lamports);
 
         let jito_tip = diff_lamports / 2;
 
-        const THRESHOLD: u64 = 3000;
+        const THRESHOLD: i64 = 3000;
         if diff_lamports > THRESHOLD {
             // Build and send transaction
-            self.execute_arbitrage(quote0_resp, quote1_resp, jito_tip)
+            self.execute_arbitrage(quote0_resp, quote1_resp, jito_tip.try_into().unwrap())
                 .await?;
 
             let duration = start.elapsed();
