@@ -88,6 +88,9 @@ impl ArbitrageBot {
 
             let duration = start.elapsed();
             log::info!("Total duration: {}ms", duration.as_millis());
+        } else {
+            // Sleep for 100ms
+            tokio::time::sleep(Duration::from_millis(100)).await;
         }
 
         Ok(())
