@@ -27,8 +27,11 @@ pub struct ArbitrageBot {
 
 impl ArbitrageBot {
     pub fn new() -> Result<Self> {
-        let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
-        let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
+        // let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
+        // let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
+        let wallet_secret_key =
+            env::var("WALLET_SECRET_KEY").expect("WALLET_SECRET_KEY must be set");
+        let payer = Keypair::from_base58_string(&wallet_secret_key);
 
         log::info!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
 
