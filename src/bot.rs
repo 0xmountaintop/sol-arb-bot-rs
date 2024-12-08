@@ -2,6 +2,7 @@ use crate::consts::*;
 use crate::types::*;
 use anyhow::Result;
 use log;
+use rand::Rng;
 use solana_client::rpc_client::RpcClient;
 use solana_program::address_lookup_table::{
     self,
@@ -149,10 +150,12 @@ impl ArbitrageBot {
         // 3. Add swap instruction
         instructions.push(self.convert_instruction_data(instructions_resp.swap_instruction)?);
 
+        let tip_account_index = rand::thread_rng().gen_range(0..JITO_TIP_ACCOUNTS.len());
+
         // 4. Add tip instruction
         let tip_ix = system_instruction::transfer(
             &self.payer.pubkey(),
-            &Pubkey::from_str(JITO_TIP_ACCOUNT)?,
+            &Pubkey::from_str(JITO_TIP_ACCOUNTS[tip_account_index])?,
             jito_tip,
         );
         instructions.push(tip_ix);
