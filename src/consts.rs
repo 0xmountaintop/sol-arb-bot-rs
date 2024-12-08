@@ -1,5 +1,6 @@
 pub const WSOL_MINT: &str = "So11111111111111111111111111111111111111112";
-pub const USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+// pub const USDC_MINT: &str = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
+pub const USDC_MINT: &str = "KENJSUYLASHUMfHyy5o4Hp2FdNqZg1AsUPhfH2kYvEP";
 pub const JITO_TIP_ACCOUNT: &str = "Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY";
 
 use lazy_static::lazy_static;

@@ -60,7 +60,7 @@ impl ArbitrageBot {
         let quote0_params = QuoteParams {
             input_mint: WSOL_MINT.to_string(),
             output_mint: USDC_MINT.to_string(),
-            amount: 10_000_000.to_string(), // 0.01 WSOL
+            amount: 100_000_000.to_string(), // 0.1 WSOL
             only_direct_routes: false,
             slippage_bps: 0,
             max_accounts: 20,
