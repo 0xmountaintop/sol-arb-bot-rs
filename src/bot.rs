@@ -259,18 +259,35 @@ impl ArbitrageBot {
             "params": [base58_txs]
         });
 
-        // Send bundle to Jito
-        let bundle_resp = self
-            .http_client
-            .post(JITO_RPC_URL.to_string())
-            .json(&bundle_request)
-            .send()
-            .await?;
+        // Send bundle to all Jito endpoints in parallel
+        let futures = JITO_ENDPOINTS.iter().map(|endpoint| {
+            let client = &self.http_client;
+            let bundle_request = bundle_request.clone();
+            
+            async move {
+                let bundle_resp = client
+                    .post(*endpoint)
+                    .json(&bundle_request)
+                    .send()
+                    .await?;
 
-        let bundle_result: serde_json::Value = bundle_resp.json().await?;
-        let bundle_id = bundle_result["result"].as_str().unwrap_or("unknown");
+                let bundle_result: serde_json::Value = bundle_resp.json().await?;
+                let bundle_id = bundle_result["result"].as_str().unwrap_or("unknown");
+                
+                log::info!("Sent to jito endpoint {}, bundle id: {}", endpoint, bundle_id);
+                Ok::<_, anyhow::Error>(())
+            }
+        });
 
-        log::info!("Sent to jito, bundle id: {}", bundle_id);
+        // Wait for all requests to complete
+        let results = futures::future::join_all(futures).await;
+        
+        // Log any errors that occurred
+        for (i, result) in results.into_iter().enumerate() {
+            if let Err(e) = result {
+                log::error!("Failed to send to endpoint {}: {}", JITO_ENDPOINTS[i], e);
+            }
+        }
 
         Ok(())
     }
