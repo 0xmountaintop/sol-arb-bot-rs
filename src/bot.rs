@@ -11,6 +11,7 @@ use solana_sdk::{
     commitment_config::CommitmentConfig,
     compute_budget::ComputeBudgetInstruction,
     instruction::{AccountMeta, Instruction},
+    native_token::LAMPORTS_PER_SOL,
     pubkey::Pubkey,
     signature::{read_keypair_file, Keypair},
     signer::Signer,
@@ -27,8 +28,12 @@ pub struct ArbitrageBot {
 
 impl ArbitrageBot {
     pub fn new() -> Result<Self> {
-        let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
-        let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
+        // TODO: revert back
+        // let keypair_path = env::var("KEYPAIR_PATH").expect("KEYPAIR_PATH must be set");
+        // let payer = read_keypair_file(&keypair_path).expect("Failed to read keypair file");
+        let wallet_secret_key =
+            env::var("WALLET_SECRET_KEY").expect("WALLET_SECRET_KEY must be set");
+        let payer = Keypair::from_base58_string(&wallet_secret_key);
 
         log::info!("payer: {:?}", bs58::encode(payer.pubkey()).into_string());
 
@@ -47,50 +52,50 @@ impl ArbitrageBot {
 
         // Quote 0: WSOL -> USDC
         let quote0_params = QuoteParams {
-            input_mint: WSOL_MINT.to_string(),
-            output_mint: USDC_MINT.to_string(),
-            amount: 10_000_000.to_string(), // 0.01 WSOL
+            input_mint: USDC_MINT.to_string(),
+            output_mint: WSOL_MINT.to_string(),
+            amount: 1_000_000.to_string(), // 1 USDC
             only_direct_routes: false,
-            slippage_bps: 0,
+            slippage_bps: 300,
             max_accounts: 20,
         };
         let quote0_resp = self.get_quote(&quote0_params).await?;
 
-        // Quote 1: USDC -> WSOL
-        let quote1_params = QuoteParams {
-            input_mint: USDC_MINT.to_string(),
-            output_mint: WSOL_MINT.to_string(),
-            amount: quote0_resp.out_amount.clone(),
-            only_direct_routes: false,
-            slippage_bps: 0,
-            max_accounts: 20,
-        };
-        let quote1_resp = self.get_quote(&quote1_params).await?;
+        // // Quote 1: USDC -> WSOL
+        // let quote1_params = QuoteParams {
+        //     input_mint: USDC_MINT.to_string(),
+        //     output_mint: WSOL_MINT.to_string(),
+        //     amount: quote0_resp.out_amount.clone(),
+        //     only_direct_routes: false,
+        //     slippage_bps: 0,
+        //     max_accounts: 20,
+        // };
+        // let quote1_resp = self.get_quote(&quote1_params).await?;
 
-        // Calculate potential profit
-        let quote1_out_amount = quote1_resp.out_amount.parse::<u64>()?;
-        let quote0_in_amount = quote0_params.amount.parse::<u64>()?;
-        if quote1_out_amount < quote0_in_amount {
-            log::info!(
-                "not profitable, skipping. diffLamports: -{}",
-                quote0_in_amount - quote1_out_amount
-            );
-            return Ok(());
-        }
-        let diff_lamports = quote1_out_amount - quote0_in_amount;
-        log::info!("diffLamports: {}", diff_lamports);
+        // // Calculate potential profit
+        // let quote1_out_amount = quote1_resp.out_amount.parse::<u64>()?;
+        // let quote0_in_amount = quote0_params.amount.parse::<u64>()?;
+        // if quote1_out_amount < quote0_in_amount {
+        //     log::info!(
+        //         "not profitable, skipping. diffLamports: -{}",
+        //         quote0_in_amount - quote1_out_amount
+        //     );
+        //     return Ok(());
+        // }
+        // let diff_lamports = quote1_out_amount - quote0_in_amount;
+        // log::info!("diffLamports: {}", diff_lamports);
 
-        let jito_tip = diff_lamports / 2;
+        // let jito_tip = diff_lamports / 2;
 
         const THRESHOLD: u64 = 3000;
-        if diff_lamports > THRESHOLD {
-            // Build and send transaction
-            self.execute_arbitrage(quote0_resp, quote1_resp, jito_tip)
-                .await?;
+        // if diff_lamports > THRESHOLD {
+        // Build and send transaction
+        self.execute_arbitrage(quote0_resp, LAMPORTS_PER_SOL / 10000)
+            .await?;
 
-            let duration = start.elapsed();
-            log::info!("Total duration: {}ms", duration.as_millis());
-        }
+        let duration = start.elapsed();
+        log::info!("Total duration: {}ms", duration.as_millis());
+        // }
 
         Ok(())
     }
@@ -98,16 +103,16 @@ impl ArbitrageBot {
     async fn execute_arbitrage(
         &self,
         quote0: QuoteResponse,
-        quote1: QuoteResponse,
+        // quote1: QuoteResponse,
         jito_tip: u64,
     ) -> Result<()> {
         let mut merged_quote = quote0.clone();
-        merged_quote.output_mint = quote1.output_mint;
-        merged_quote.out_amount = quote1.out_amount;
-        merged_quote.other_amount_threshold =
-            (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
+        // merged_quote.output_mint = quote1.output_mint;
+        // merged_quote.out_amount = quote1.out_amount;
+        // merged_quote.other_amount_threshold =
+        //     (quote0.other_amount_threshold.parse::<u64>()? + jito_tip).to_string();
         merged_quote.price_impact_pct = 0.0.to_string();
-        merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
+        // merged_quote.route_plan = [quote0.route_plan, quote1.route_plan].concat();
 
         // Prepare swap data for Jupiter API
         let swap_data = SwapData {
