@@ -30,7 +30,7 @@ pub struct ArbitrageBot {
     http_client: reqwest::Client,
     payer: Keypair,
 
-    address_lookup_table_accounts: Option<Vec<AddressLookupTableAccount>>,
+    // address_lookup_table_accounts: Option<Vec<AddressLookupTableAccount>>,
 }
 
 impl ArbitrageBot {
@@ -50,7 +50,7 @@ impl ArbitrageBot {
             ),
             http_client: reqwest::Client::new(),
             payer,
-            address_lookup_table_accounts: None,
+            // address_lookup_table_accounts: None,
         })
     }
 
@@ -61,7 +61,7 @@ impl ArbitrageBot {
         let quote0_params = QuoteParams {
             input_mint: WSOL_MINT.to_string(),
             output_mint: USDC_MINT.to_string(),
-            amount: 100_000_000.to_string(), // 0.1 WSOL
+            amount: 1_000_000_000.to_string(), // 1 WSOL
             only_direct_routes: false,
             slippage_bps: 0,
             max_accounts: 20,
@@ -163,20 +163,20 @@ impl ArbitrageBot {
         // Get latest blockhash
         let blockhash = self.client.get_latest_blockhash()?;
 
-        if self.address_lookup_table_accounts.is_none() {
-            let address_lookup_tables = self
-                .get_address_lookup_tables(&instructions_resp.address_lookup_table_addresses)
-                .await?;
-            self.address_lookup_table_accounts = Some(address_lookup_tables.clone());
-        }
+        // if self.address_lookup_table_accounts.is_none() {
+        let address_lookup_tables = self
+            .get_address_lookup_tables(&instructions_resp.address_lookup_table_addresses)
+            .await?;
+        // self.address_lookup_table_accounts = Some(address_lookup_tables.clone());
+        // }
 
-        let address_lookup_tables = self.address_lookup_table_accounts.as_ref().unwrap();
+        // let address_lookup_tables = self.address_lookup_table_accounts.as_ref().unwrap();
 
         // Create versioned transaction
         let message = solana_sdk::message::v0::Message::try_compile(
             &self.payer.pubkey(),
             &instructions,
-            address_lookup_tables,
+            &address_lookup_tables,
             blockhash,
         )?;
 
