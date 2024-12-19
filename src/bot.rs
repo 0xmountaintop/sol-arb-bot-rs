@@ -97,7 +97,7 @@ impl ArbitrageBot {
 
         let jito_tip = diff_lamports / 2;
 
-        const THRESHOLD: i64 = 3000;
+        const THRESHOLD: u64 = 3000;
         if diff_lamports > THRESHOLD {
             // Build and send transaction
             self.execute_arbitrage(quote0_resp, quote1_resp, jito_tip.try_into().unwrap())
