@@ -83,8 +83,16 @@ impl ArbitrageBot {
         log::debug!("quote0_params.amount: {:?}", quote0_params.amount);
 
         // Calculate potential profit
-        let diff_lamports: i64 =
-            quote1_resp.out_amount.parse::<i64>()? - quote0_params.amount.parse::<i64>()?;
+        let quote1_out_amount = quote1_resp.out_amount.parse::<u64>()?;
+        let quote0_in_amount = quote0_params.amount.parse::<u64>()?;
+        if quote1_out_amount < quote0_in_amount {
+            log::info!(
+                "not profitable, skipping. diffLamports: -{}",
+                quote0_in_amount - quote1_out_amount
+            );
+            return Ok(());
+        }
+        let diff_lamports = quote1_out_amount - quote0_in_amount;
         log::info!("diffLamports: {}", diff_lamports);
 
         let jito_tip = diff_lamports / 2;
